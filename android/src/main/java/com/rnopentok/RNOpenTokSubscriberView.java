@@ -1,5 +1,7 @@
 package com.rnopentok;
 
+import android.util.Log;
+
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -10,13 +12,18 @@ import com.opentok.android.Stream;
 import com.opentok.android.Subscriber;
 import com.opentok.android.SubscriberKit;
 
+import java.util.HashSet;
+
 public class RNOpenTokSubscriberView extends RNOpenTokView implements SubscriberKit.SubscriberListener {
-    private Subscriber mSubscriber;
+    private static String TAG = "RNOpenTokSubscriberView";
+//    private Subscriber mSubscriber;
+    private HashSet<Subscriber> mSubscribers;
     private Boolean mAudioEnabled;
     private Boolean mVideoEnabled;
 
     public RNOpenTokSubscriberView(ThemedReactContext context) {
         super(context);
+        mSubscribers = new HashSet<>();
     }
 
     @Override
@@ -26,17 +33,26 @@ public class RNOpenTokSubscriberView extends RNOpenTokView implements Subscriber
     }
 
     public void setAudio(Boolean enabled) {
-        if (mSubscriber != null) {
-            mSubscriber.setSubscribeToAudio(enabled);
+//        if (mSubscriber != null) {
+//            mSubscriber.setSubscribeToAudio(enabled);
+//        }
+
+        for (Subscriber subscriber : mSubscribers) {
+            subscriber.setSubscribeToAudio(enabled);
         }
 
         mAudioEnabled = enabled;
     }
 
     public void setVideo(Boolean enabled) {
-        if (mSubscriber != null) {
-            mSubscriber.setSubscribeToVideo(enabled);
+//        if (mSubscriber != null) {
+//            mSubscriber.setSubscribeToVideo(enabled);
+//        }
+
+        for (Subscriber subscriber : mSubscribers) {
+            subscriber.setSubscribeToVideo(enabled);
         }
+
 
         mVideoEnabled = enabled;
     }
@@ -48,39 +64,70 @@ public class RNOpenTokSubscriberView extends RNOpenTokView implements Subscriber
     }
 
     private void startSubscribing(Stream stream) {
-        mSubscriber = new Subscriber(getContext(), stream);
-        mSubscriber.setSubscriberListener(this);
-        mSubscriber.setSubscribeToAudio(mAudioEnabled);
-        mSubscriber.setSubscribeToVideo(mVideoEnabled);
+//        mSubscriber = new Subscriber(getContext(), stream);
+//        mSubscriber.setSubscriberListener(this);
+//        mSubscriber.setSubscribeToAudio(mAudioEnabled);
+//        mSubscriber.setSubscribeToVideo(mVideoEnabled);
+//
+//        mSubscriber.getRenderer().setStyle(BaseVideoRenderer.STYLE_VIDEO_SCALE,
+//                BaseVideoRenderer.STYLE_VIDEO_FILL);
+//
+//        Session session = RNOpenTokSessionManager.getSessionManager().getSession(mSessionId);
+//        session.subscribe(mSubscriber);
+//
+//        attachSubscriberView();
 
-        mSubscriber.getRenderer().setStyle(BaseVideoRenderer.STYLE_VIDEO_SCALE,
-                BaseVideoRenderer.STYLE_VIDEO_FILL);
 
+        Log.d(TAG, "startSubscribing: " + stream);
+        Subscriber subscriber = new Subscriber(getContext(), stream);
+        subscriber.setSubscribeToAudio(mAudioEnabled);
+        subscriber.setSubscribeToVideo(mVideoEnabled);
         Session session = RNOpenTokSessionManager.getSessionManager().getSession(mSessionId);
-        session.subscribe(mSubscriber);
-
-        attachSubscriberView();
+        session.subscribe(subscriber);
+        mSubscribers.add(subscriber);
     }
 
-    private void attachSubscriberView() {
-        addView(mSubscriber.getView(), new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-        requestLayout();
-    }
-
-    private void cleanUpSubscriber() {
-        removeView(mSubscriber.getView());
-        mSubscriber = null;
-    }
-
-    public void onStreamReceived(Session session, Stream stream) {
-        if (mSubscriber == null) {
-            startSubscribing(stream);
-            sendEvent(Events.EVENT_SUBSCRIBE_START, Arguments.createMap());
+    private void stopSubscribing(Stream stream) {
+        Log.d(TAG, "stopSubscribing: " + stream);
+        for (Subscriber subscriber : mSubscribers) {
+            if (subscriber.getStream() == stream) {
+                Session session = RNOpenTokSessionManager.getSessionManager().getSession(mSessionId);
+                session.unsubscribe(subscriber);
+                break;
+            }
         }
     }
 
+    public void onDisconnected(Session session) {
+        for (Subscriber subscriber : mSubscribers) {
+            session.unsubscribe(subscriber);
+        }
+        mSubscribers.clear();
+    }
+
+//    private void attachSubscriberView() {
+//        addView(mSubscriber.getView(), new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+//        requestLayout();
+//    }
+
+//    private void cleanUpSubscriber() {
+//        removeView(mSubscriber.getView());
+//        mSubscriber = null;
+//    }
+
+    public void onStreamReceived(Session session, Stream stream) {
+//        if (mSubscriber == null) {
+//            startSubscribing(stream);
+//            sendEvent(Events.EVENT_SUBSCRIBE_START, Arguments.createMap());
+//        }
+
+        startSubscribing(stream);
+    }
+
     public void onStreamDropped(Session session, Stream stream) {
-        sendEvent(Events.EVENT_SUBSCRIBE_STOP, Arguments.createMap());
+//        sendEvent(Events.EVENT_SUBSCRIBE_STOP, Arguments.createMap());
+
+        stopSubscribing(stream);
     }
 
     /** Subscribe listener **/

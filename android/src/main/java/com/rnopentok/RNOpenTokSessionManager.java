@@ -111,6 +111,11 @@ public class RNOpenTokSessionManager implements Session.SessionListener, Session
 
     @Override
     public void onDisconnected(Session session) {
+        RNOpenTokSubscriberView subscriberView = mSubscribers.get(session.getSessionId());
+        if (subscriberView != null) {
+            subscriberView.onDisconnected(session);
+        }
+
         WritableMap payload = Arguments.createMap();
         payload.putString("sessionId", session.getSessionId());
 
